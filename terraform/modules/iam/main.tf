@@ -1,0 +1,318 @@
+# FinOps least-privilege IAM role + OIDC trust for GitHub Actions
+
+data "aws_caller_identity" "current" {}
+
+# ── GitHub OIDC Provider (create once per account) ──────────────────────────
+resource "aws_iam_openid_connect_provider" "github" {
+  count = var.create_oidc_provider ? 1 : 0
+
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["ffffffffffffffffffffffffffffffffffffffff"] # GitHub rotates; use latest
+}
+
+locals {
+  oidc_provider_arn = var.create_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : var.existing_oidc_provider_arn
+  account_id        = data.aws_caller_identity.current.account_id
+}
+
+# ── Role assumed by GitHub Actions via OIDC ─────────────────────────────────
+resource "aws_iam_role" "github_actions" {
+  name = "${var.project}-github-actions"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = local.oidc_provider_arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = {
+          StringEquals = {
+            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+          }
+          StringLike = {
+            "token.actions.githubusercontent.com:sub" = "repo:${var.github_org}/${var.github_repo}:*"
+          }
+        }
+      }
+    ]
+  })
+
+  tags = var.tags
+}
+
+
+resource "aws_iam_role_policy" "github_actions" {
+  name = "${var.project}-github-actions-policy"
+  role = aws_iam_role.github_actions.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "TerraformState"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.state_bucket}",
+          "arn:aws:s3:::${var.state_bucket}/*"
+        ]
+      },
+      {
+        Sid    = "DeployFinOpsResources"
+        Effect = "Allow"
+        Action = [
+          "iam:*",
+          "s3:*",
+          "budgets:*",
+          "ce:*",
+          "lambda:*",
+          "ecs:*",
+          "ecr:*",
+          "logs:*",
+          "events:*",
+          "ssm:GetParameter*",
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# ── Runtime role for the FinOps application ─────────────────────────────────
+resource "aws_iam_role" "finops_app" {
+  name = "${var.project}-app"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = [
+            "ecs-tasks.amazonaws.com",
+            "lambda.amazonaws.com",
+            "ec2.amazonaws.com"
+          ]
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = var.tags
+}
+
+resource "aws_iam_role_policy" "finops_app" {
+  name = "${var.project}-app-policy"
+  role = aws_iam_role.finops_app.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "CostExplorerRead"
+        Effect = "Allow"
+        Action = [
+          "ce:GetCostAndUsage",
+          "ce:GetCostForecast",
+          "ce:GetDimensionValues",
+          "ce:GetTags",
+          "ce:GetAnomalies",
+          "ce:GetAnomalyMonitors",
+          "ce:GetAnomalySubscriptions"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "BudgetsRead"
+        Effect = "Allow"
+        Action = [
+          "budgets:ViewBudget",
+          "budgets:DescribeBudgets",
+          "budgets:DescribeBudget*"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "SESSend"
+        Effect = "Allow"
+        Action = [
+          "ses:SendEmail",
+          "ses:SendRawEmail"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "S3Reports"
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.reports_bucket}",
+          "arn:aws:s3:::${var.reports_bucket}/*"
+        ]
+      },
+      {
+        Sid    = "CloudWatchLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid      = "STS"
+        Effect   = "Allow"
+        Action   = ["sts:GetCallerIdentity"]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# ── ECS Task Execution Role ────────────────────────────────────────────────
+# Used by ECS/Fargate to perform startup operations such as:
+# - pulling the container image from ECR
+# - sending container logs to CloudWatch
+# - retrieving ECS secrets
+
+resource "aws_iam_role" "ecs_execution" {
+  name = "${var.project}-ecs-execution"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Effect = "Allow"
+
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = var.tags
+}
+
+resource "aws_iam_role_policy" "ecs_execution" {
+  name = "${var.project}-ecs-execution-policy"
+  role = aws_iam_role.ecs_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid    = "ECRPull"
+        Effect = "Allow"
+
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage"
+        ]
+
+        Resource = "*"
+      },
+
+      {
+        Sid    = "CloudWatchLogs"
+        Effect = "Allow"
+
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+
+        Resource = "*"
+      },
+
+      {
+        Sid    = "ReadSSMSecrets"
+        Effect = "Allow"
+
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+
+        Resource = aws_ssm_parameter.slack_webhook_url[0].arn
+      },
+
+      {
+        Sid    = "DecryptSSMSecret"
+        Effect = "Allow"
+
+        Action = [
+          "kms:Decrypt"
+        ]
+
+        Resource = data.aws_kms_alias.ssm[0].target_key_arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_instance_profile" "finops_app" {
+  name = "${var.project}-app"
+  role = aws_iam_role.finops_app.name
+}
+
+# ── Slack webhook — stored as SSM SecureString, readable only by finops_app ──
+resource "aws_ssm_parameter" "slack_webhook_url" {
+  count = var.slack_webhook_url != null ? 1 : 0
+
+  name  = "/finops/${var.project}/slack_webhook_url"
+  type  = "SecureString"
+  value = var.slack_webhook_url
+  tags  = var.tags
+}
+
+data "aws_kms_alias" "ssm" {
+  count = var.slack_webhook_url != null ? 1 : 0
+  name  = "alias/aws/ssm"
+}
+
+resource "aws_iam_role_policy" "read_slack_webhook" {
+  count = var.slack_webhook_url != null ? 1 : 0
+  name  = "${var.project}-read-slack-webhook"
+  role  = aws_iam_role.finops_app.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ReadSlackWebhookParam"
+        Effect   = "Allow"
+        Action   = ["ssm:GetParameters", "ssm:GetParameter"]
+        Resource = aws_ssm_parameter.slack_webhook_url[0].arn
+      },
+      {
+        Sid      = "DecryptSlackWebhookParam"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt"]
+        Resource = data.aws_kms_alias.ssm[0].target_key_arn
+      }
+    ]
+  })
+}

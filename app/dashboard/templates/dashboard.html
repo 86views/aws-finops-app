@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ title }}</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="header">
+    <h1>{{ title }}</h1>
+    <p class="subtitle">Last 30 days · Generated {{ summary.generated_at }}</p>
+  </header>
+
+  <main class="container">
+    <section class="cards">
+      <div class="card">
+        <h3>Current Total</h3>
+        <p class="metric">${{ "{:,.2f}".format(summary.current_total) }}</p>
+      </div>
+      <div class="card">
+        <h3>Previous Period</h3>
+        <p class="metric">${{ "{:,.2f}".format(summary.previous_total) }}</p>
+      </div>
+      <div class="card {% if summary.change_pct > 5 %}up{% elif summary.change_pct < -5 %}down{% endif %}">
+        <h3>Change</h3>
+        <p class="metric">{{ "{:+.1f}".format(summary.change_pct) }}%</p>
+      </div>
+      <div class="card">
+        <h3>MoM Current</h3>
+        <p class="metric">${{ "{:,.2f}".format(summary.mom.current) }}</p>
+      </div>
+    </section>
+
+    <section class="charts">
+      <div class="chart-box">
+        <h2>Top Services</h2>
+        <canvas id="servicesChart" height="280"></canvas>
+      </div>
+      <div class="chart-box">
+        <h2>Forecast (next days)</h2>
+        <canvas id="forecastChart" height="280"></canvas>
+      </div>
+    </section>
+
+    <section class="table-section">
+      <h2>Top Services Detail</h2>
+      <table>
+        <thead>
+          <tr><th>Service</th><th>Amount (USD)</th></tr>
+        </thead>
+        <tbody>
+          {% for s in summary.top_services %}
+          <tr>
+            <td>{{ s.service }}</td>
+            <td>${{ "{:,.2f}".format(s.amount) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const summary = {{ summary_json | safe }};
+
+    // Services bar chart
+    const svcLabels = summary.top_services.map(s => s.service);
+    const svcData = summary.top_services.map(s => s.amount);
+    new Chart(document.getElementById('servicesChart'), {
+      type: 'bar',
+      data: {
+        labels: svcLabels,
+        datasets: [{
+          label: 'Cost (USD)',
+          data: svcData,
+          backgroundColor: 'rgba(54, 162, 235, 0.7)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true } }
+      }
+    });
+
+    // Forecast line
+    const fc = summary.forecast || [];
+    new Chart(document.getElementById('forecastChart'), {
+      type: 'line',
+      data: {
+        labels: fc.map(f => f.date),
+        datasets: [{
+          label: 'Predicted daily cost',
+          data: fc.map(f => f.predicted_amount),
+          borderColor: 'rgba(255, 99, 132, 1)',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  </script>
+</body>
+</html>

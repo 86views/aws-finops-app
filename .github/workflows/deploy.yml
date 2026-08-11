@@ -1,0 +1,124 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: aws-finops-app-dev-app
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    environment:
+      name: dev
+
+    concurrency:
+      group: dev
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------
+      # AWS authentication through GitHub OIDC
+      # ------------------------------------------------------------
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions-finops
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ------------------------------------------------------------
+      # Verify AWS identity
+      # ------------------------------------------------------------
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      # ------------------------------------------------------------
+      # Login to ECR
+      # ------------------------------------------------------------
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ------------------------------------------------------------
+      # Build Docker image
+      # ------------------------------------------------------------
+
+      - name: Build Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          docker build \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}" \
+            .
+
+      # ------------------------------------------------------------
+      # Push immutable image
+      # ------------------------------------------------------------
+
+      - name: Push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          docker push \
+            "$ECR_REGISTRY/$ECR_REPOSITORY:${{ env.IMAGE_TAG }}"
+
+      # ------------------------------------------------------------
+      # Terraform
+      # ------------------------------------------------------------
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.6"
+
+      - name: Terraform Init
+        working-directory: terraform/environments/dev
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: terraform/environments/dev
+        run: |
+          terraform plan \
+            -var-file=terraform.tfvars \
+            -var="container_image_tag=${IMAGE_TAG}" \
+            -out=tfplan
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          TF_VAR_github_org: ${{ github.repository_owner }}
+          TF_VAR_github_repo: ${{ github.event.repository.name }}
+
+      - name: Terraform Apply
+        working-directory: terraform/environments/dev
+        run: terraform apply -auto-approve tfplan
+
+      # ------------------------------------------------------------
+      # Deployment summary
+      # ------------------------------------------------------------
+
+      - name: Deployment summary
+        run: |
+          echo "## 🚀 Deployment complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Repository: \`${{ github.repository }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ECR repository: \`${{ env.ECR_REPOSITORY }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image tag: \`${{ env.IMAGE_TAG }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- AWS region: \`${{ env.AWS_REGION }}\`" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>{{ title }}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 2rem; color: #1a1a1a; }
+    h1 { color: #0b3d5c; border-bottom: 2px solid #0b3d5c; padding-bottom: 0.4rem; }
+    h2 { color: #1a5f7a; margin-top: 1.8rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 0.8rem; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem 0.75rem; text-align: left; }
+    th { background: #f0f4f8; }
+    .meta { color: #555; font-size: 0.9rem; }
+    .metric { font-size: 1.4rem; font-weight: 600; }
+    .up { color: #c0392b; }
+    .down { color: #27ae60; }
+  </style>
+</head>
+<body>
+  <h1>{{ title }}</h1>
+  <p class="meta">Generated {{ generated_at }} · Period {{ summary.start }} → {{ summary.end }}</p>
+
+  <h2>Summary</h2>
+  <table>
+    <tr><th>Current Total</th><td class="metric">${{ "{:,.2f}".format(summary.current_total) }}</td></tr>
+    <tr><th>Previous Total</th><td>${{ "{:,.2f}".format(summary.previous_total) }}</td></tr>
+    <tr>
+      <th>Change</th>
+      <td class="{% if summary.change_pct > 5 %}up{% elif summary.change_pct < -5 %}down{% endif %}">
+        {{ "{:+.1f}".format(summary.change_pct) }}%
+      </td>
+    </tr>
+  </table>
+
+  <h2>Top Services</h2>
+  <table>
+    <thead><tr><th>Service</th><th>Amount (USD)</th></tr></thead>
+    <tbody>
+      {% for s in summary.top_services %}
+      <tr><td>{{ s.service }}</td><td>${{ "{:,.2f}".format(s.amount) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if summary.forecast %}
+  <h2>Forecast</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Predicted (USD)</th></tr></thead>
+    <tbody>
+      {% for f in summary.forecast %}
+      <tr><td>{{ f.date }}</td><td>${{ "{:,.2f}".format(f.predicted_amount) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if summary.by_region %}
+  <h2>By Region</h2>
+  <table>
+    <thead><tr><th>Region</th><th>Amount (USD)</th></tr></thead>
+    <tbody>
+      {% for region, amount in summary.by_region.items() %}
+      <tr><td>{{ region }}</td><td>${{ "{:,.2f}".format(amount) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</body>
+</html>
