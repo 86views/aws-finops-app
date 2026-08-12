@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import json
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from starlette.requests import Request
 
 from app.alerts.anomaly import get_anomalies, process_anomalies
 from app.core.config import get_settings
@@ -20,6 +19,9 @@ from app.core.cost_explorer import (
     get_tag_costs,
 )
 from app.reports.generator import generate_reports
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/dashboard/templates")

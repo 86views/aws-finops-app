@@ -23,6 +23,8 @@ module "iam" {
   project                    = local.name_prefix
   github_org                 = var.github_org
   github_repo                = var.github_repo
+  github_owner_id            = var.github_owner_id
+  github_repo_id             = var.github_repo_id
   state_bucket               = var.state_bucket
   reports_bucket             = module.s3_reports.bucket_name
   create_oidc_provider       = var.create_oidc_provider

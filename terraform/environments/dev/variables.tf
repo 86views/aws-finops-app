@@ -14,14 +14,23 @@ variable "environment" {
 }
 
 variable "github_org" {
+  description = "GitHub organization or username"
   type        = string
-  description = "GitHub organisation or username"
 }
 
 variable "github_repo" {
-  type        = string
   description = "GitHub repository name"
-  default     = "aws-finops"
+  type        = string
+}
+
+variable "github_owner_id" {
+  description = "GitHub owner numeric ID"
+  type        = string
+}
+
+variable "github_repo_id" {
+  description = "GitHub repository numeric ID"
+  type        = string
 }
 
 variable "state_bucket" {

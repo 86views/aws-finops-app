@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -85,7 +85,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
-    settings = get_settings()
     app = FastAPI(
         title="AWS FinOps Platform",
         version="1.0.0",

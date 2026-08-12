@@ -1,7 +1,7 @@
 """Unit tests for cost explorer helpers (mocked)."""
 
 from datetime import date
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
