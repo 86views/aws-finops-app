@@ -133,7 +133,7 @@ def compute_mom_trend(df: pd.DataFrame) -> dict[str, Any]:
 
     totals = df[df.iloc[:, 1] == "_TOTAL_"] if "_TOTAL_" in df.iloc[:, 1].values else df
     if totals.empty:
-        totals = df.groupby("date", as_index=False)["amount"].sum()
+        totals = df.groupby("date", as_index=False)[["amount"]].sum()
 
     monthly = totals.groupby(totals["date"].dt.to_period("M"))["amount"].sum().sort_index()
     if len(monthly) < 2:
