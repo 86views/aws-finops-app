@@ -69,7 +69,7 @@ def notify_cost_summary(summary: dict[str, Any], period: str = "daily") -> None:
         f"• Period: {summary.get('start')} → {summary.get('end')}"
     )
 
-    blocks = [
+    blocks: list[dict[str, Any]] = [
         {
             "type": "header",
             "text": {"type": "plain_text", "text": f"AWS FinOps {period.capitalize()} Report"},
@@ -77,9 +77,15 @@ def notify_cost_summary(summary: dict[str, Any], period: str = "daily") -> None:
         {
             "type": "section",
             "fields": [
-                {"type": "mrkdwn", "text": f"*Current Total*\n`${summary.get('current_total', 0):,.2f}`"},
+                {
+                    "type": "mrkdwn",
+                    "text": f"*Current Total*\n`${summary.get('current_total', 0):,.2f}`",
+                },
                 {"type": "mrkdwn", "text": f"*Change*\n`{change:+.1f}%`"},
-                {"type": "mrkdwn", "text": f"*Previous*\n`${summary.get('previous_total', 0):,.2f}`"},
+                {
+                    "type": "mrkdwn",
+                    "text": f"*Previous*\n`${summary.get('previous_total', 0):,.2f}`",
+                },
                 {
                     "type": "mrkdwn",
                     "text": f"*Period*\n{summary.get('start')} → {summary.get('end')}",
@@ -100,12 +106,12 @@ def notify_cost_summary(summary: dict[str, Any], period: str = "daily") -> None:
     # lightweight HTML email
     html = f"""
     <h2>AWS FinOps {period.capitalize()} Report</h2>
-    <p><strong>Total:</strong> ${summary.get('current_total', 0):,.2f}<br>
+    <p><strong>Total:</strong> ${summary.get("current_total", 0):,.2f}<br>
        <strong>Change:</strong> {change:+.1f}%<br>
-       <strong>Period:</strong> {summary.get('start')} → {summary.get('end')}</p>
+       <strong>Period:</strong> {summary.get("start")} → {summary.get("end")}</p>
     <h3>Top Services</h3>
     <ul>
-    {''.join(f"<li>{s['service']}: ${s['amount']:,.2f}</li>" for s in top)}
+    {"".join(f"<li>{s['service']}: ${s['amount']:,.2f}</li>" for s in top)}
     </ul>
     """
     send_email(

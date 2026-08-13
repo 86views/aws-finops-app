@@ -161,13 +161,14 @@ def simple_forecast(df: pd.DataFrame, periods: int = 3) -> list[dict[str, Any]]:
         return []
 
     # linear regression on last 30 days
+
     recent = daily.tail(30)
     x = list(range(len(recent)))
     y = recent.values.tolist()
     n = len(x)
     sum_x = sum(x)
     sum_y = sum(y)
-  
+
     sum_xy = sum(a * b for a, b in zip(x, y, strict=True))
     sum_x2 = sum(a * a for a in x)
     denom = n * sum_x2 - sum_x * sum_x

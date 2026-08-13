@@ -3,8 +3,16 @@ name: CI
 on:
   push:
     branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
 
 permissions:
   contents: read
@@ -17,9 +25,9 @@ jobs:
   lint-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
@@ -41,7 +49,7 @@ jobs:
         run: pytest --cov=app --cov-report=xml
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@015fec59ed9f3041c21c2262c1683cd4a8e23438 # v4.6.0
         if: always()
         with:
           files: coverage.xml
@@ -50,9 +58,9 @@ jobs:
   terraform-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd545c68009d7428f62c0b42f61a153282ebfa # v3.1.2
         with:
           terraform_version: "1.9.8"
 
@@ -68,7 +76,7 @@ jobs:
         run: terraform validate
 
       - name: Checkov
-        uses: bridgecrewio/checkov-action@v12
+        uses: bridgecrewio/checkov-action@ed16417bfcb603248386dd2fbfe74fae7f5db283 # v12.2827.0
         with:
           directory: terraform/
           framework: terraform
@@ -78,16 +86,32 @@ jobs:
   docker-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Build image
-        run: docker build -t aws-finops:ci .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@c100067645ef5db9026330089e5a87179069d35f # v3.10.0
 
-      - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.28.0
+      - name: Build image (with GitHub Actions Caching)
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: .
+          load: true
+          tags: aws-finops:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy vulnerability scan (SARIF format)
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394d2dd8c87dbb9 # v0.28.0
         with:
           image-ref: aws-finops:ci
-          format: table
+          format: sarif
+          output: trivy-results.sarif
           exit-code: "0"
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+
+      - name: Upload SARIF report to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@f602b5aaee205f2e642337d12f468f3a38e8fb47 # v3.28.11
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif

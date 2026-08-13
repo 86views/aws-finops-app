@@ -1,10 +1,6 @@
 """Unit tests for cost explorer helpers (mocked)."""
 
-from datetime import date
-from unittest.mock import patch
-
 import pandas as pd
-import pytest
 
 from app.core.cost_explorer import (
     compute_mom_trend,
@@ -25,14 +21,10 @@ def test_results_to_dataframe_basic():
             "Groups": [
                 {
                     "Keys": ["Amazon EC2"],
-                    "Metrics": {
-                        "UnblendedCost": {"Amount": "42.50", "Unit": "USD"}
-                    },
+                    "Metrics": {"UnblendedCost": {"Amount": "42.50", "Unit": "USD"}},
                 }
             ],
-            "Total": {
-                "UnblendedCost": {"Amount": "42.50", "Unit": "USD"}
-            },
+            "Total": {"UnblendedCost": {"Amount": "42.50", "Unit": "USD"}},
         }
     ]
     df = results_to_dataframe(results, "SERVICE")
@@ -42,7 +34,9 @@ def test_results_to_dataframe_basic():
 
 
 def test_compute_mom_trend_insufficient_data():
-    df = pd.DataFrame({"date": pd.to_datetime(["2026-07-01"]), "service": ["_TOTAL_"], "amount": [100.0]})
+    df = pd.DataFrame(
+        {"date": pd.to_datetime(["2026-07-01"]), "service": ["_TOTAL_"], "amount": [100.0]}
+    )
     result = compute_mom_trend(df)
     assert result["current"] == 100.0
     assert result["previous"] == 0.0

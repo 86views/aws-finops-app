@@ -2,8 +2,6 @@
 
 from unittest.mock import patch
 
-from unittest.mock import patch
-
 from fastapi.testclient import TestClient
 
 from app.main import app

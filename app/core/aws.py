@@ -8,7 +8,6 @@ from botocore.config import Config
 
 from app.core.config import get_settings
 
-
 _BOTO_CONFIG = Config(
     retries={"max_attempts": 5, "mode": "adaptive"},
     connect_timeout=10,
@@ -25,7 +24,8 @@ def get_session() -> boto3.Session:
 
 
 def get_client(service: str) -> Any:
-    return get_session().client(service, config=_BOTO_CONFIG)
+    # mypy: ignore[call-overload] needed because `service` is a dynamic string
+    return get_session().client(service, config=_BOTO_CONFIG)  # type: ignore[call-overload]
 
 
 def get_ce_client() -> Any:
@@ -46,4 +46,5 @@ def get_sts_client() -> Any:
 
 
 def get_caller_identity() -> dict[str, str]:
-    return get_sts_client().get_caller_identity()
+    res: dict[str, str] = get_sts_client().get_caller_identity()
+    return res

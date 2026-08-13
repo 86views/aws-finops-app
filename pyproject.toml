@@ -34,6 +34,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "ruff>=0.8.0",
     "mypy>=1.13.0",
+    "pandas-stubs>=2.2.0",
     "types-boto3>=1.0.0",
     "httpx>=0.27.0",
 ]
@@ -49,7 +50,7 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
 
-# ===== Ruff configuration (corrected) =====
+# ===== Ruff Configuration =====
 [tool.ruff]
 target-version = "py312"
 line-length = 100
@@ -61,14 +62,36 @@ ignore = ["E501"]
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
 
-# ===== Other tools =====
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+# ===== Mypy Configuration =====
 [tool.mypy]
 python_version = "3.12"
 strict = true
 ignore_missing_imports = true
 plugins = ["pydantic.mypy"]
+show_error_codes = true
+show_error_context = true
 
+[[tool.mypy.overrides]]
+module = "boto3.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "botocore.*"
+ignore_missing_imports = true
+
+# ===== Pytest Configuration =====
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
-addopts = "-q --cov=app --cov-report=term-missing"
+addopts = "-q --cov=app --cov-report=term-missing --cov-report=xml"
+filterwarnings = [
+    "ignore:.*starlette.testclient is deprecated.*:DeprecationWarning",
+    "ignore:.*starlette.testclient is deprecated.*:UserWarning",
+    "ignore:.*httpx.*starlette.testclient.*",
+]

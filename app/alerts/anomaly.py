@@ -25,7 +25,8 @@ def get_anomalies(days: int = 14) -> list[dict[str, Any]]:
             DateInterval={"StartDate": start.isoformat(), "EndDate": end.isoformat()},
             MaxResults=20,
         )
-        return response.get("Anomalies", [])
+        anomalies: list[dict[str, Any]] = response.get("Anomalies", [])
+        return anomalies
     except Exception as exc:  # noqa: BLE001
         logger.warning("get_anomalies_failed", error=str(exc))
         return []
