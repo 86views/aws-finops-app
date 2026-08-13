@@ -69,8 +69,14 @@ resource "aws_iam_role_policy" "github_actions" {
           "ecr:*",
           "logs:*",
           "events:*",
-          "ssm:GetParameter*",
-          "secretsmanager:GetSecretValue"
+          "ssm:*",
+          "secretsmanager:GetSecretValue",
+          "ec2:*",
+          "elasticloadbalancing:*",
+          "ses:*",
+          "sns:*",
+          "cloudwatch:*",
+          "application-autoscaling:*"
         ]
         Resource = "*"
       }
@@ -209,57 +215,49 @@ resource "aws_iam_role_policy" "ecs_execution" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-
-    Statement = [
-      {
-        Sid    = "ECRPull"
-        Effect = "Allow"
-
-        Action = [
-          "ecr:GetAuthorizationToken",
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage"
-        ]
-
-        Resource = "*"
-      },
-
-      {
-        Sid    = "CloudWatchLogs"
-        Effect = "Allow"
-
-        Action = [
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-
-        Resource = "*"
-      },
-
-      {
-        Sid    = "ReadSSMSecrets"
-        Effect = "Allow"
-
-        Action = [
-          "ssm:GetParameter",
-          "ssm:GetParameters"
-        ]
-
-        Resource = aws_ssm_parameter.slack_webhook_url[0].arn
-      },
-
-      {
-        Sid    = "DecryptSSMSecret"
-        Effect = "Allow"
-
-        Action = [
-          "kms:Decrypt"
-        ]
-
-        Resource = data.aws_kms_alias.ssm[0].target_key_arn
-      }
-    ]
+    Statement = concat(
+      [
+        {
+          Sid    = "ECRPull"
+          Effect = "Allow"
+          Action = [
+            "ecr:GetAuthorizationToken",
+            "ecr:BatchCheckLayerAvailability",
+            "ecr:GetDownloadUrlForLayer",
+            "ecr:BatchGetImage"
+          ]
+          Resource = "*"
+        },
+        {
+          Sid    = "CloudWatchLogs"
+          Effect = "Allow"
+          Action = [
+            "logs:CreateLogStream",
+            "logs:PutLogEvents"
+          ]
+          Resource = "*"
+        }
+      ],
+      var.slack_webhook_url != null ? [
+        {
+          Sid    = "ReadSSMSecrets"
+          Effect = "Allow"
+          Action = [
+            "ssm:GetParameter",
+            "ssm:GetParameters"
+          ]
+          Resource = aws_ssm_parameter.slack_webhook_url[0].arn
+        },
+        {
+          Sid    = "DecryptSSMSecret"
+          Effect = "Allow"
+          Action = [
+            "kms:Decrypt"
+          ]
+          Resource = data.aws_kms_alias.ssm[0].target_key_arn
+        }
+      ] : []
+    )
   })
 }
 

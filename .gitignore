@@ -29,6 +29,10 @@ data/
 *.tfstate
 *.tfstate.*
 *.tfvars
+!*.tfvars.example
+**/secrets.tfvars
+**/dev.tfvars
+**/prod.tfvars
 *.tfvars.local
 !terraform/environments/dev/terraform.tfvars
 crash.log
@@ -42,3 +46,8 @@ override.tf
 
 # Docker
 *.log
+*.tfvars
+add -A.tfvars.example
+
+*.tfvars
+reset --soft origin/main.tfvars.example
