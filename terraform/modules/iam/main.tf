@@ -56,7 +56,7 @@ resource "aws_iam_role_policy" "github_actions" {
           "arn:aws:s3:::${var.state_bucket}/*"
         ]
       },
-      {
+       {
         Sid    = "DeployFinOpsResources"
         Effect = "Allow"
         Action = [
@@ -76,7 +76,9 @@ resource "aws_iam_role_policy" "github_actions" {
           "ses:*",
           "sns:*",
           "cloudwatch:*",
-          "application-autoscaling:*"
+          "application-autoscaling:*",
+          "kms:ListAliases",
+          "kms:DescribeKey"
         ]
         Resource = "*"
       }
