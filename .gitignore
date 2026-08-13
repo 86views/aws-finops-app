@@ -29,7 +29,8 @@ data/
 *.tfstate
 *.tfstate.*
 *.tfvars
-!*.tfvars.example
+*.tfvars.local
+!terraform/environments/dev/terraform.tfvars
 crash.log
 override.tf
 
