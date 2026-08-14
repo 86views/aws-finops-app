@@ -12,6 +12,7 @@ from app.core.config import get_settings
 
 logger = structlog.get_logger(__name__)
 
+
 def send_slack_message(
     text: str,
     blocks: list[dict[str, Any]] | None = None,
@@ -65,6 +66,7 @@ def send_slack_message(
             error=str(exc),
         )
         return False
+
 
 def send_email(subject: str, body_html: str, body_text: str | None = None) -> bool:
     settings = get_settings()
