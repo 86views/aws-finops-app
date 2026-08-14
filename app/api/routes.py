@@ -20,7 +20,6 @@ from app.core.cost_explorer import (
 )
 from app.reports.generator import generate_reports
 
-
 router = APIRouter()
 
 templates = Jinja2Templates(directory="app/dashboard/templates")
@@ -84,11 +83,7 @@ async def api_services(
     if df.empty:
         return []
 
-    grouped = (
-        df.groupby("service")["amount"]
-        .sum()
-        .sort_values(ascending=False)
-    )
+    grouped = df.groupby("service")["amount"].sum().sort_values(ascending=False)
 
     return [
         {
@@ -118,11 +113,7 @@ async def api_regions(
     if df.empty:
         return []
 
-    grouped = (
-        df.groupby("region")["amount"]
-        .sum()
-        .sort_values(ascending=False)
-    )
+    grouped = df.groupby("region")["amount"].sum().sort_values(ascending=False)
 
     return [
         {
@@ -165,11 +156,7 @@ async def api_tags(
 
     col = tag_key.lower()
 
-    grouped = (
-        df.groupby(col)["amount"]
-        .sum()
-        .sort_values(ascending=False)
-    )
+    grouped = df.groupby(col)["amount"].sum().sort_values(ascending=False)
 
     return [
         {
