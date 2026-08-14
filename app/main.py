@@ -42,11 +42,51 @@ def _parse_cron(expr: str) -> CronTrigger:
 
 async def _run_daily_report() -> None:
     logger.info("scheduled_daily_report_start")
-    result = generate_reports(period="daily")
-    summary = result.get("summary")
-    if summary:
-        notify_cost_summary(summary, period="daily")
-    process_anomalies()
+
+    try:
+        result = generate_reports(period="daily")
+
+        logger.info(
+            "scheduled_daily_report_generated",
+            result_keys=list(result.keys()),
+        )
+
+        summary = result.get("summary")
+
+        if summary:
+            logger.info(
+                "scheduled_daily_report_summary_found",
+                current_total=summary.get("current_total"),
+                previous_total=summary.get("previous_total"),
+                change_pct=summary.get("change_pct"),
+            )
+
+            slack_result = notify_cost_summary(
+                summary,
+                period="daily",
+            )
+
+            logger.info(
+                "scheduled_daily_report_notification_complete",
+                slack_result=slack_result,
+            )
+        else:
+            logger.warning(
+                "scheduled_daily_report_no_summary",
+            )
+
+        anomaly_count = process_anomalies()
+
+        logger.info(
+            "scheduled_daily_report_complete",
+            anomaly_count=anomaly_count,
+        )
+
+    except Exception as exc:
+        logger.exception(
+            "scheduled_daily_report_failed",
+            error=str(exc),
+        )
 
 
 async def _run_weekly_report() -> None:

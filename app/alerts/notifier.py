@@ -12,25 +12,59 @@ from app.core.config import get_settings
 
 logger = structlog.get_logger(__name__)
 
+def send_slack_message(
+    text: str,
+    blocks: list[dict[str, Any]] | None = None,
+) -> bool:
+    """Send a message to Slack using the configured incoming webhook."""
 
-def send_slack_message(text: str, blocks: list[dict[str, Any]] | None = None) -> bool:
     settings = get_settings()
+
     if not settings.slack_webhook_url:
-        logger.warning("slack_webhook_not_configured")
+        logger.error(
+            "slack_webhook_not_configured",
+            app_env=settings.app_env,
+        )
         return False
 
-    client = WebhookClient(settings.slack_webhook_url)
-    response = client.send(
-        text=text,
-        blocks=blocks,
+    logger.info(
+        "slack_send_start",
+        app_env=settings.app_env,
+        has_webhook=True,
+        webhook_length=len(settings.slack_webhook_url),
     )
-    ok = response.status_code == 200
-    if not ok:
-        logger.error("slack_send_failed", status=response.status_code, body=response.body)
-    else:
-        logger.info("slack_message_sent")
-    return ok
 
+    try:
+        client = WebhookClient(settings.slack_webhook_url)
+
+        response = client.send(
+            text=text,
+            blocks=blocks,
+        )
+
+        logger.info(
+            "slack_response",
+            status=response.status_code,
+            body=response.body,
+        )
+
+        if response.status_code == 200:
+            logger.info("slack_message_sent")
+            return True
+
+        logger.error(
+            "slack_send_failed",
+            status=response.status_code,
+            body=response.body,
+        )
+        return False
+
+    except Exception as exc:  # noqa: BLE001
+        logger.exception(
+            "slack_send_exception",
+            error=str(exc),
+        )
+        return False
 
 def send_email(subject: str, body_html: str, body_text: str | None = None) -> bool:
     settings = get_settings()
