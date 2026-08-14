@@ -94,10 +94,14 @@ def send_email(subject: str, body_html: str, body_text: str | None = None) -> bo
         return False
 
 
-def notify_cost_summary(summary: dict[str, Any], period: str = "daily") -> None:
+def notify_cost_summary(
+    summary: dict[str, Any],
+    period: str = "daily",
+) -> bool:
     """Send a cost summary to Slack (and optionally email)."""
     change = summary.get("change_pct", 0)
     emoji = "📈" if change > 5 else "📉" if change < -5 else "➡️"
+
     text = (
         f"{emoji} *AWS FinOps {period.capitalize()} Summary*\n"
         f"• Total: `${summary.get('current_total', 0):,.2f}`\n"
@@ -108,36 +112,85 @@ def notify_cost_summary(summary: dict[str, Any], period: str = "daily") -> None:
     blocks: list[dict[str, Any]] = [
         {
             "type": "header",
-            "text": {"type": "plain_text", "text": f"AWS FinOps {period.capitalize()} Report"},
+            "text": {
+                "type": "plain_text",
+                "text": f"AWS FinOps {period.capitalize()} Report",
+            },
         },
         {
             "type": "section",
             "fields": [
                 {
                     "type": "mrkdwn",
-                    "text": f"*Current Total*\n`${summary.get('current_total', 0):,.2f}`",
-                },
-                {"type": "mrkdwn", "text": f"*Change*\n`{change:+.1f}%`"},
-                {
-                    "type": "mrkdwn",
-                    "text": f"*Previous*\n`${summary.get('previous_total', 0):,.2f}`",
+                    "text": (f"*Current Total*\n`${summary.get('current_total', 0):,.2f}`"),
                 },
                 {
                     "type": "mrkdwn",
-                    "text": f"*Period*\n{summary.get('start')} → {summary.get('end')}",
+                    "text": f"*Change*\n`{change:+.1f}%`",
+                },
+                {
+                    "type": "mrkdwn",
+                    "text": (f"*Previous*\n`${summary.get('previous_total', 0):,.2f}`"),
+                },
+                {
+                    "type": "mrkdwn",
+                    "text": (f"*Period*\n{summary.get('start')} → {summary.get('end')}"),
                 },
             ],
         },
     ]
 
     top = summary.get("top_services", [])[:5]
+
     if top:
         lines = "\n".join(f"• {s['service']}: `${s['amount']:,.2f}`" for s in top)
+
         blocks.append(
-            {"type": "section", "text": {"type": "mrkdwn", "text": f"*Top Services*\n{lines}"}}
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*Top Services*\n{lines}",
+                },
+            }
         )
 
-    send_slack_message(text, blocks=blocks)
+    # Send Slack notification and retain the result
+    slack_sent = send_slack_message(
+        text,
+        blocks=blocks,
+    )
+
+    # Send optional email notification
+    html = f"""
+    <h2>AWS FinOps {period.capitalize()} Report</h2>
+
+    <p>
+        <strong>Total:</strong>
+        ${summary.get("current_total", 0):,.2f}<br>
+
+        <strong>Change:</strong>
+        {change:+.1f}%<br>
+
+        <strong>Period:</strong>
+        {summary.get("start")} → {summary.get("end")}
+    </p>
+
+    <h3>Top Services</h3>
+
+    <ul>
+        {"".join(f"<li>{s['service']}: ${s['amount']:,.2f}</li>" for s in top)}
+    </ul>
+    """
+
+    send_email(
+        subject=(
+            f"[FinOps] {period.capitalize()} cost report – ${summary.get('current_total', 0):,.2f}"
+        ),
+        body_html=html,
+    )
+
+    return slack_sent
 
     # lightweight HTML email
     html = f"""
