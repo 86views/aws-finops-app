@@ -21,10 +21,10 @@ def test_results_to_dataframe_basic():
             "Groups": [
                 {
                     "Keys": ["Amazon EC2"],
-                    "Metrics": {"UnblendedCost": {"Amount": "42.50", "Unit": "USD"}},
+                    "Metrics": {"NetUnblendedCost": {"Amount": "42.50", "Unit": "USD"}},
                 }
             ],
-            "Total": {"UnblendedCost": {"Amount": "42.50", "Unit": "USD"}},
+            "Total": {"NetUnblendedCost": {"Amount": "42.50", "Unit": "USD"}},
         }
     ]
     df = results_to_dataframe(results, "SERVICE")

@@ -38,7 +38,7 @@ def get_cost_and_usage(
     """
     ce = get_ce_client()
 
-    metrics = metrics or ["UnblendedCost"]
+    metrics = metrics or ["NetUnblendedCost"]
     group_by = group_by or [{"Type": "DIMENSION", "Key": "SERVICE"}]
 
     results: list[dict[str, Any]] = []
@@ -86,7 +86,7 @@ def results_to_dataframe(
         # Grouped results, e.g. Amazon EC2, Amazon S3, etc.
         for group in period.get("Groups", []):
             keys = group.get("Keys", ["Unknown"])
-            metric = group.get("Metrics", {}).get("UnblendedCost", {})
+            metric = group.get("Metrics", {}).get("NetUnblendedCost", {})
 
             amount = float(metric.get("Amount", 0.0))
             unit = metric.get("Unit", "USD")
@@ -103,7 +103,7 @@ def results_to_dataframe(
         # Cost Explorer total for the period
         total = period.get("Total")
         if total:
-            metric = total.get("UnblendedCost", {})
+            metric = total.get("NetUnblendedCost", {})
 
             rows.append(
                 {
