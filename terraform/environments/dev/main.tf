@@ -140,7 +140,8 @@ module "ecs" {
     AWS_REGION               = var.aws_region
     DATABASE_URL             = "sqlite+aiosqlite:///./data/finops.db"
     REPORT_OUTPUT_DIR        = "/app/data/reports"
-    SCHEDULER_ENABLED        = "true"
+    # Scheduling is handled by EventBridge/Lambda
+    SCHEDULER_ENABLED        = "false"
     SLACK_CHANNEL            = "#all-oluleye"
     SES_FROM_EMAIL           = var.ses_verified_email
     SES_TO_EMAILS            = jsonencode(var.alert_emails)
@@ -148,7 +149,7 @@ module "ecs" {
     ANOMALY_IMPACT_THRESHOLD = tostring(var.anomaly_impact_threshold)
     DASHBOARD_TITLE          = "AWS FinOps Dashboard"
     API_KEY                  = var.api_key
-  }
+}
 
   secrets = merge(
     module.iam.slack_webhook_parameter_arn != null ? { SLACK_WEBHOOK_URL = module.iam.slack_webhook_parameter_arn } : {}
