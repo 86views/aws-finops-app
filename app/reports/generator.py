@@ -9,6 +9,7 @@ from typing import Any, Literal
 
 import structlog
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from app.alerts.notifier import notify_cost_summary
 
 from app.core.config import get_settings
 from app.core.cost_explorer import (
@@ -127,8 +128,16 @@ def generate_reports(period: Period = "daily") -> dict[str, Any]:
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     base = settings.report_output_dir / f"finops_{period}_{ts}"
 
+    
     csv_path = generate_csv(summary, base.with_suffix(".csv"))
     html_path = generate_html(summary, period, base.with_suffix(".html"))
     pdf_path = generate_pdf(html_path, base.with_suffix(".pdf"))
 
+    try:
+        notify_cost_summary(summary, period=period)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("notify_cost_summary_failed", error=str(exc), period=period)
+
     return {"csv": csv_path, "html": html_path, "pdf": pdf_path, "summary": summary}
+
+    
