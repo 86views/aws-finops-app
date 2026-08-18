@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import csv
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
 import structlog
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from app.alerts.notifier import notify_cost_summary
 
+from app.alerts.notifier import notify_cost_summary
 from app.core.config import get_settings
 from app.core.cost_explorer import (
     get_cost_summary,
@@ -72,7 +72,7 @@ def generate_html(summary: dict[str, Any], period: Period, output_path: Path) ->
         title=f"AWS FinOps {period.capitalize()} Report",
         summary=summary,
         period=period,
-        generated_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        generated_at=datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html, encoding="utf-8")
@@ -125,7 +125,7 @@ def generate_reports(period: Period = "daily") -> dict[str, Any]:
         else {}
     )
 
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     base = settings.report_output_dir / f"finops_{period}_{ts}"
 
     csv_path = generate_csv(summary, base.with_suffix(".csv"))
