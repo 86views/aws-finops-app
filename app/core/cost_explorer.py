@@ -41,6 +41,20 @@ def get_cost_and_usage(
     metrics = metrics or ["NetUnblendedCost"]
     group_by = group_by or [{"Type": "DIMENSION", "Key": "SERVICE"}]
 
+    exclude_credits_refunds = {
+        "Not": {
+            "Dimensions": {
+                "Key": "RECORD_TYPE",
+                "Values": ["Credit", "Refund"],
+            }
+        }
+    }
+
+    if filter_expr:
+        filter_expr = {"And": [filter_expr, exclude_credits_refunds]}
+    else:
+        filter_expr = exclude_credits_refunds
+
     results: list[dict[str, Any]] = []
     next_token: str | None = None
 
