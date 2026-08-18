@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import csv
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal
 
@@ -72,7 +72,7 @@ def generate_html(summary: dict[str, Any], period: Period, output_path: Path) ->
         title=f"AWS FinOps {period.capitalize()} Report",
         summary=summary,
         period=period,
-        generated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+        generated_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html, encoding="utf-8")
@@ -125,10 +125,9 @@ def generate_reports(period: Period = "daily") -> dict[str, Any]:
         else {}
     )
 
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     base = settings.report_output_dir / f"finops_{period}_{ts}"
 
-    
     csv_path = generate_csv(summary, base.with_suffix(".csv"))
     html_path = generate_html(summary, period, base.with_suffix(".html"))
     pdf_path = generate_pdf(html_path, base.with_suffix(".pdf"))
@@ -139,5 +138,3 @@ def generate_reports(period: Period = "daily") -> dict[str, Any]:
         logger.warning("notify_cost_summary_failed", error=str(exc), period=period)
 
     return {"csv": csv_path, "html": html_path, "pdf": pdf_path, "summary": summary}
-
-    
